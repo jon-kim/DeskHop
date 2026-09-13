@@ -1,4 +1,4 @@
-# ScreenManager
+# DeskHop
 
 A minimal **WPF desktop app** for Windows that moves an app window to another monitor.
 
@@ -34,7 +34,7 @@ Built with **.NET 10** and kept intentionally small (YAGNI).
 
 ```powershell
 dotnet build
- dotnet run --project .\ScreenManager\ScreenManager.csproj
+ dotnet run --project .\DeskHop\DeskHop.csproj
 ```
 
 ## Notes

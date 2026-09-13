@@ -6,7 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 
-namespace ScreenManager;
+namespace DeskHop;
 
 public partial class MainWindow : Window
 {
@@ -26,31 +26,31 @@ public partial class MainWindow : Window
     private void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
         RefreshData();
-        StatusText.Text = "Lists refreshed.";
+        StatusBarText.Text = "Lists refreshed.";
     }
 
     private void MoveButton_Click(object sender, RoutedEventArgs e)
     {
         if (WindowSelector.SelectedItem is not WindowItem selectedWindow)
         {
-            StatusText.Text = "Select an app window first.";
+            StatusBarText.Text = "Select an app window first.";
             return;
         }
 
         if (MonitorSelector.SelectedItem is not MonitorItem selectedMonitor)
         {
-            StatusText.Text = "Select a target monitor.";
+            StatusBarText.Text = "Select a target monitor.";
             return;
         }
 
         if (!TryMoveWindowToMonitor(selectedWindow.Handle, selectedMonitor))
         {
-            StatusText.Text = "Could not move the selected window.";
+            StatusBarText.Text = "Could not move the selected window.";
             return;
         }
 
         RefreshData(selectedWindow.ProcessId, selectedMonitor.Handle);
-        StatusText.Text = $"Moved '{selectedWindow.Title}' to {selectedMonitor.DisplayName}.";
+        StatusBarText.Text = $"Moved '{selectedWindow.Title}' to {selectedMonitor.DisplayName}.";
     }
 
     private void Selector_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -63,7 +63,7 @@ public partial class MainWindow : Window
         if (e.Key == Key.F5)
         {
             RefreshData();
-            StatusText.Text = "Lists refreshed.";
+            StatusBarText.Text = "Lists refreshed.";
             e.Handled = true;
             return;
         }
@@ -109,7 +109,7 @@ public partial class MainWindow : Window
 
         if (_windowItems.Count == 0)
         {
-            StatusText.Text = "No movable app windows found. Open an app and refresh.";
+            StatusBarText.Text = "No movable app windows found. Open an app and refresh.";
         }
     }
 
