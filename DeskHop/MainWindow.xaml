@@ -4,8 +4,11 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Screen Manager" Height="360" Width="600" MinHeight="320" MinWidth="600"
-        PreviewKeyDown="Window_PreviewKeyDown">
+        Title="DeskHop" 
+        Height="360" MinHeight="{Binding RelativeSource={RelativeSource Self}, Path=Height}" 
+        Width="600" MinWidth="{Binding RelativeSource={RelativeSource Self}, Path=Width}"
+        Icon="/AppIcon.png"
+        PreviewKeyDown="Window_PreviewKeyDown" WindowStartupLocation="CenterScreen">
   <DockPanel Margin="16">
     <StatusBar DockPanel.Dock="Bottom">
       <StatusBarItem HorizontalContentAlignment="Stretch">
@@ -15,13 +18,26 @@
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <TextBlock x:Name="StatusBarText" VerticalAlignment="Center" />
-          <Button Content="&#xE72C;" FontFamily="Segoe MDL2 Assets" Click="RefreshButton_Click" Grid.Column="1" Padding="3px" />
+          <Button Click="RefreshButton_Click" Grid.Column="1" Padding="3px">
+            <Button.Content>
+              <StackPanel Orientation="Horizontal">
+                <StackPanel.Resources>
+                  <Style TargetType="TextBlock">
+                    <Setter Property="VerticalAlignment" Value="Center" />
+                  </Style>
+                </StackPanel.Resources>
+                <TextBlock Text="&#xE72C;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" />
+                <TextBlock Text="Refresh" />
+              </StackPanel>
+            </Button.Content>
+          </Button>
         </Grid>
       </StatusBarItem>
     </StatusBar>
 
     <Grid>
       <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
@@ -36,23 +52,33 @@
                 MinHeight="28"
                 SelectionChanged="Selector_SelectionChanged" />
 
-      <Grid Grid.Row="2">
+      <TextBlock Text="Move to monitor" VerticalAlignment="Center" FontWeight="SemiBold" Grid.Row="2" />
+
+      <Grid Grid.Row="3">
         <Grid.ColumnDefinitions>
-          <ColumnDefinition Width="Auto" />
           <ColumnDefinition Width="*" />
           <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <TextBlock Text="Move to monitor" VerticalAlignment="Center" FontWeight="SemiBold" Grid.Column="0" />
         <ComboBox x:Name="MonitorSelector"
-            Margin="12,0,0,0"
             DisplayMemberPath="DisplayName"
-            SelectionChanged="Selector_SelectionChanged" 
-            Grid.Column="1" />
+            SelectionChanged="Selector_SelectionChanged" />
         <Button x:Name="MoveButton"
-          Content="Move"
           Margin="8,0,0,0"
+          Padding="2"
           Click="MoveButton_Click"
-          Grid.Column="2" />
+          Grid.Column="1">
+          <Button.Content>
+            <StackPanel Orientation="Horizontal">
+              <StackPanel.Resources>
+                <Style TargetType="TextBlock">
+                  <Setter Property="VerticalAlignment" Value="Center" />
+                </Style>
+              </StackPanel.Resources>
+              <TextBlock Text="&#xF0AF;" FontFamily="Segoe MDL2 Assets" Margin="0,0,4,0" />
+              <TextBlock Text="Move" />
+            </StackPanel>
+          </Button.Content>
+        </Button>
       </Grid>
     </Grid>
   </DockPanel>
