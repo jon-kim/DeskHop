@@ -1,0 +1,66 @@
+name: Release on master push
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    env:
+      PROJECT_PATH: DeskHop/DeskHop.csproj
+      RUNTIME: win-x64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Compute version
+        shell: pwsh
+        run: |
+          $version = "0.1.${{ github.run_number }}"
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TAG=v$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "PUBLISH_DIR=${{ github.workspace }}\artifacts\publish" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "ASSET_DIR=${{ github.workspace }}\artifacts\assets" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Publish app
+        shell: pwsh
+        run: |
+          dotnet publish $env:PROJECT_PATH -c Release -r $env:RUNTIME --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:Version=$env:APP_VERSION /p:AssemblyVersion=$env:APP_VERSION.0 /p:FileVersion=$env:APP_VERSION.0 -o $env:PUBLISH_DIR
+
+      - name: Create zip asset
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path $env:ASSET_DIR -Force | Out-Null
+          $zipPath = Join-Path $env:ASSET_DIR "DeskHop-$env:TAG-$env:RUNTIME.zip"
+          if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
+          Compress-Archive -Path (Join-Path $env:PUBLISH_DIR "*") -DestinationPath $zipPath -CompressionLevel Optimal
+          "ASSET_PATH=$zipPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $repo = "${{ github.repository }}"
+
+          gh release view $env:TAG --repo $repo *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $env:TAG $env:ASSET_PATH --repo $repo --clobber
+          }
+          else {
+            gh release create $env:TAG $env:ASSET_PATH --repo $repo --title "DeskHop $env:TAG" --generate-notes
+          }
