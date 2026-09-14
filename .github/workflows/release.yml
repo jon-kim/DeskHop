@@ -43,6 +43,7 @@ jobs:
 
             gh release view $tag --repo $repo *> $null
             if ($LASTEXITCODE -ne 0) {
+              $LASTEXITCODE = 0
               break
             }
 
