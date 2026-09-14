@@ -1,10 +1,9 @@
-﻿using System;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 
 namespace DeskHop;
@@ -16,7 +15,7 @@ public partial class App : Application
     private static readonly HttpClient UpdateHttpClient = new();
 
     private const string GitHubOwner = "jon-kim";
-    private const string GitHubRepository = "ScreenManager";
+    private const string GitHubRepository = "DeskHop";
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -26,8 +25,29 @@ public partial class App : Application
         MainWindow = mainWindow;
         mainWindow.Show();
 
-        await TryCheckForUpdatesAsync(mainWindow);
+        if (!IsInVisualStudioContext())
+        {
+            await TryCheckForUpdatesAsync(mainWindow);
+        }
     }
+
+    public static bool IsInVisualStudioContext()
+    {
+        // Check if the code is rendering inside the designer preview
+        if (DesignerProperties.GetIsInDesignMode(new DependencyObject()))
+        {
+            return true;
+        }
+
+        // Check if the code is running via F5 Debugging
+        if (Debugger.IsAttached)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
 
     private static async Task TryCheckForUpdatesAsync(Window owner)
     {

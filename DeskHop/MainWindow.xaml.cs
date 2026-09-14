@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -10,12 +11,17 @@ namespace DeskHop;
 
 public partial class MainWindow : Window
 {
+    public string AppVersion { get; set; }
+
     private readonly ObservableCollection<WindowItem> _windowItems = [];
     private readonly ObservableCollection<MonitorItem> _monitorItems = [];
 
     public MainWindow()
     {
         InitializeComponent();
+        DataContext = this;
+
+        AppVersion = GetApplicationVersion();
 
         WindowSelector.ItemsSource = _windowItems;
         MonitorSelector.ItemsSource = _monitorItems;
@@ -265,100 +271,76 @@ public partial class MainWindow : Window
             SWP_NOZORDER | SWP_NOACTIVATE);
     }
 
-    private sealed record WindowItem(int ProcessId, IntPtr Handle, string Title, string ProcessName)
+    public static string GetApplicationVersion()
     {
-        public string DisplayName => $"{Title} — {ProcessName} (PID {ProcessId})";
+        // 1. Fallback for MSIX / Windows Store Packages (Modern .NET & .NET Framework)
+        try
+        {
+            Type? packageType = Type.GetType("Windows.ApplicationModel.Package, Windows, ContentType=WindowsRuntime");
+            if (packageType != null)
+            {
+                dynamic? currentPackage = packageType.GetProperty("Current")?.GetValue(null);
+                if (currentPackage != null)
+                {
+                    var v = currentPackage.Id.Version;
+                    return $"Version {v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+                }
+            }
+        }
+        catch { /* Proceed to next fallback */ }
+
+        // 2. Fallback for Legacy ClickOnce Deployments (.NET Framework)
+        try
+        {
+            Type? deploymentType = Type.GetType("System.Deployment.Application.ApplicationDeployment, System.Deployment, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a");
+            if (deploymentType != null)
+            {
+                object? isNetworkDeployedObj = deploymentType.GetProperty("IsNetworkDeployed")?.GetValue(null);
+                if (isNetworkDeployedObj is bool isNetworkDeployed && isNetworkDeployed)
+                {
+                    dynamic? currentDeployment = deploymentType.GetProperty("CurrentDeployment")?.GetValue(null);
+                    Version? v = currentDeployment?.CurrentVersion;
+                    if (v != null) return $"Version {v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+                }
+            }
+        }
+        catch { /* Proceed to next fallback */ }
+
+        // 3. Fallback for AppDomain Activation Context (Reflection-safe)
+        try
+        {
+            object? activationCtx = AppDomain.CurrentDomain.GetType().GetProperty("ActivationContext")?.GetValue(AppDomain.CurrentDomain);
+            if (activationCtx != null)
+            {
+                object? identity = activationCtx.GetType().GetProperty("Identity")?.GetValue(activationCtx);
+                string? versionStr = identity?.GetType().GetProperty("Version")?.GetValue(identity) as string;
+
+                if (!string.IsNullOrEmpty(versionStr) && Version.TryParse(versionStr, out Version? v) && v != null)
+                {
+                    return $"Version {v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+                }
+            }
+        }
+        catch { /* Proceed to next fallback */ }
+
+        // 4. Fallback to Entry Assembly Version (The standard .exe project version)
+        try
+        {
+            Version? v = Assembly.GetEntryAssembly()?.GetName()?.Version;
+            if (v != null) return $"Version {v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+        }
+        catch { /* Proceed to next fallback */ }
+
+        // 5. Fallback to Executing Assembly Version (The assembly containing this code block)
+        try
+        {
+            Version? v = Assembly.GetExecutingAssembly().GetName().Version;
+            if (v != null) return $"Version {v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+        }
+        catch { /* Proceed to next fallback */ }
+
+        // 6. Ultimate Hardcoded Fallback
+        return "Version 0.0.0.0";
     }
 
-    private sealed record MonitorItem(
-        IntPtr Handle,
-        int Left,
-        int Top,
-        int Right,
-        int Bottom,
-        int WorkLeft,
-        int WorkTop,
-        int WorkRight,
-        int WorkBottom,
-        int Index)
-    {
-        public string DisplayName => $"Monitor {Index}: {WorkRight - WorkLeft} x {WorkBottom - WorkTop}";
-    }
-
-    private const int MONITOR_DEFAULTTONEAREST = 2;
-    private const uint SWP_NOZORDER = 0x0004;
-    private const uint SWP_NOACTIVATE = 0x0010;
-    private const uint GW_OWNER = 4;
-    private const uint GA_ROOTOWNER = 3;
-    private const int GWL_EXSTYLE = -20;
-    private const int WS_EX_TOOLWINDOW = 0x00000080;
-    private const int DWMWA_CLOAKED = 14;
-
-    private delegate bool MonitorEnumProc(IntPtr hMonitor, IntPtr hdcMonitor, IntPtr lprcMonitor, IntPtr dwData);
-
-    [DllImport("user32.dll")]
-    private static extern bool EnumDisplayMonitors(
-        IntPtr hdc,
-        IntPtr lprcClip,
-        MonitorEnumProc lpfnEnum,
-        IntPtr dwData);
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
-
-    [DllImport("user32.dll")]
-    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
-
-    [DllImport("user32.dll")]
-    private static extern bool IsWindowVisible(IntPtr hWnd);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetWindow(IntPtr hWnd, uint uCmd);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr GetAncestor(IntPtr hWnd, uint gaFlags);
-
-    [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
-    private static extern nint GetWindowLong(IntPtr hWnd, int nIndex);
-
-    [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")]
-    private static extern nint GetWindowLongPtr(IntPtr hWnd, int nIndex);
-
-    [DllImport("dwmapi.dll")]
-    private static extern int DwmGetWindowAttribute(
-        IntPtr hwnd,
-        int dwAttribute,
-        out int pvAttribute,
-        int cbAttribute);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool SetWindowPos(
-        IntPtr hWnd,
-        IntPtr hWndInsertAfter,
-        int X,
-        int Y,
-        int cx,
-        int cy,
-        uint uFlags);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT
-    {
-        public int Left;
-        public int Top;
-        public int Right;
-        public int Bottom;
-    }
-
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-    private struct MONITORINFO
-    {
-        public int cbSize;
-        public RECT rcMonitor;
-        public RECT rcWork;
-        public uint dwFlags;
-    }
 }
